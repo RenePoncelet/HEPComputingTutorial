@@ -1,0 +1,266 @@
+\documentclass[a4paper,DIV12,fleqn]{scrartcl}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[utf8]{inputenc}
+\usepackage{physics}
+\usepackage{hyperref}
+
+
+\begin{document}
+
+\begin{center}
+  {\Huge HEP Computing Tools - Tutorial}\\\vspace{1cm}
+  Dr. Rene Poncelet, Cavendish Laboratory Cambridge, June 2022
+\end{center}
+
+
+\paragraph{Introduction:}
+The aim of this tutorial is to provide insights in the usage of
+\textsc{Sherpa}, a popular Multi-Purpose Monte-Carlo Event Generator
+(abbreviated as MC), and a tool chain facilitating the analysis of
+MC-events. It is not meant to be a complete and general overview over the
+features, caveats and applications of \textsc{Sherpa} or HEP tools in general,
+but rather a deep-dive tour which tries to touch as many aspects of
+MC event generation and analysis as possible and to give them context.
+The tutorial covers the following topics:
+
+\begin{itemize}
+  \item Event generation with \textsc{Sherpa}:
+    \begin{itemize}
+      \item Fixed-order Events (LO,NLO)
+      \item Parton-Shower and Hadronization
+    \end{itemize}
+  \item Event analysis with the help of \textsc{Rivet}:
+    \begin{itemize}
+      \item Event selection
+      \item Histograms
+      \item Plotting
+    \end{itemize}
+\end{itemize}
+
+For this propose we consider the production of top-quark pairs at the
+Large-Hadron-Collider, a Standard-Model process which is studied in
+great detail by researchers around the world.
+
+\paragraph{Note:} This exercise sheet is part of the HEP Computing Tools
+tutorial and works together with the provided virtual machine
+\emph{HEPComputingTutorial}. It assumes basic knowledge of working in the
+unix bash and with \verb|c++| apart from that it is supposed to be
+self explanatory. The tutorial uses the following software packages:
+\begin{itemize}
+  \item \textsc{Sherpa}:\\
+        documentation:
+          \url{https://sherpa.hepforge.org/doc/SHERPA-MC-2.2.7.html}\\
+        source code: \url{https://sherpa-team.gitlab.io/})\\
+        release publication: \cite{Gleisberg:2008ta}
+  \item Rivet (\url{https://rivet.hepforge.org/}) \cite{Bierlich:2019rhm},
+        and plugins
+  \item LHAPDF (\url{https://lhapdf.hepforge.org/}) \cite{Buckley:2014ana}
+  \item OpenLoops 2 (\url{https://openloops.hepforge.org/})
+        \cite{Buccioni:2019sur}
+\end{itemize}
+Usually the first step in dealing with MC generators and related tools
+is to install the software. This is usually a tedious exercise due to
+the various dependencies.
+The virtual machine provides a environment where all tools and software
+packages for this tutorial have been install already, and therefore
+it is strongly
+recommended to use this virtual machine for the tutorial. If you are
+interested in installing the same tool chain on your private system, please
+referee to the shell-script \verb|~/HEPSoftware/install-all.sh|.
+
+
+One additional information: the username within the virtual machine
+is \emph{tutorial} and the password is \emph{1234test}. This is in case
+you need sudo rights.
+
+\section{Exercise 1 - Top-quark pair production}
+\label{sec:task1}
+
+Please go to the directory \verb|~/Tutorial/exercise1|.
+
+The \textsc{Sherpa} software is configured by a so called \emph{run-card}.
+In this case it is called \verb|Run.dat| and can be found in the directory.
+A run card consists of the following sections:
+\begin{itemize}
+  \item \verb|(run)|:
+               In this section parameter and general configurations appear.
+               Relevant for
+               any calculations are the number of events to be generated
+               (\verb|EVENTS|) and the matrix element generator
+               (\verb|ME_SIGNAL_GENERATOR|) which is chosen to be the default here.
+               Also the type and energy of the colliding particles has to be
+               specified (\verb|BEAM 2122| means proton beam, \verb|BEAM_ENERGY|
+               its laboratory frame energy). A further important parameter to be
+               set is the renormalization and factorization scale (\verb|SCALE|)
+               which is set to be the top-quark mass.
+  \item \verb|(processes)|:
+               In this section the signal processes are specified. Since
+               we are interested of the production of a top-quark pair
+               the signal processes is \verb|93 93 -> 6 -6| where 93 stands for
+               any massless quark or gluon and 6 the top-quark (PDG-ID). The
+               perturbative order in $\alpha_s$ and $\alpha_{EW}$
+               can also be specified, \verb|Order(*,0)| just means the lowest order
+               in $\alpha_s$ assuming $\alpha_{EW}^0$.
+  \item \verb|(analysis)|: In this section the analyses are specified. In this example
+               we specify to use the \textsc{Rivet} back-end. The analysis name
+               \verb|TUTORIAL_TTBAR_0| selects a analysis designed for this
+               exercise.
+\end{itemize}
+In general the \textsc{Sherpa} documentation gives information about all kinds of
+parameters and steering options.
+
+\textsc{Sherpa} is started by the command
+\begin{verbatim}
+  Sherpa -f Run.dat
+\end{verbatim}
+The first time it will stop with the comment that you have to make the
+matrix element libraries (\verb|./makelibs|). Afterwards \textsc{Sherpa}
+should start and should go through various steps of preparation until
+the event generation eventually starts. The analysis \verb|TUTORIAL_TTBAR_0|
+just prints out the final state particles (their PID) and their momenta, you
+should see them printed to the prompt. How does the particle content change if:
+\begin{enumerate}
+  \item You turn on the top-quark decays (see corresponding commented lines
+        in the run-card)?
+  \item You turn on the parton-shower (see corresponding commented lines in
+        the run-card)?
+  \item You turn on the hadronization (see corresponding commented lines in
+        the run-card)? (This might take a minute or two due to additional
+        preparation steps.)
+\end{enumerate}
+
+Looking at the final state particles and their momenta is nice but is not very
+illuminating. We want to write now our own analysis so we can study the events
+in a statistical way. For this, go to the directory \verb|~/Tutorial/analyses|
+and find the \verb|TUTORIAL_TTBAR_1.cc| file. This file contains the implementation
+of a simple analysis of the top-quark/anti-top-quark transverse momentum
+based on partonic top-quarks.
+\begin{enumerate}
+  \item Add some new observables (like the invariant mass of the top-quark
+        pair, rapidities) to the analysis.
+        Hint: if you want to know how to access different observables from
+        the \verb|particle| class, type:
+        \begin{verbatim}
+          firefox ~/manual/Rivet/index.html
+        \end{verbatim}
+  \item Compile it using the \verb|compile.sh| script in the same directory
+  \item Go back to the exercise 1 directory and restore the \verb|Run.dat|
+        (there is a \verb|Run.dat-save|) original state and replace the
+        \verb|TUTORIAL_TTBAR_0| analysis by the \verb|TUTORIAL_TTBAR_1|
+        analysis.
+        We will need also more events, 100k to 1M will be enough. Run Sherpa.
+  \item If everything worked out there will be a \verb|Analysis.yoda| file.
+        You can create plots using the \textsc{Rivet} tool \verb|rivet-mkhtml|.
+        Invoking \verb|rivet-mkhtml Analysis.yoda| will create a webpage where
+        you can have a look at your plots.
+  \item Try to see how the results change when activating the parton-shower.
+        Keep in mind to save your \verb|Analysis.yoda| of the previous run.
+        You can directly compare your two results with \verb|rivet-mkhtml|
+        (see \verb|rivet-mkhtml --help|).
+\end{enumerate}
+
+\section{Exercise 2 - Top-quark mass measurement}
+\label{sec:task2}
+
+The aim of this exercise is perform a phenomenological analysis
+of top-quark pair events with an emphasis on the reconstruction
+of the top-quarks from decay products.
+
+
+Please go to the directory \verb|~/Tutorial/exercise2|.
+
+
+To start you find again a \verb|Run.dat|. It is roughly the same as in
+exercise 1 but it includes now a 'professional' top-quark
+pair analysis \verb|MC_TUTORIAL_TTBAR|. First try to run the setup and
+investigate the \verb|Analysis.yoda|. This analysis contains many observables
+which are of interest for a top-quark analysis. In particular it contains
+a top-quark mass measurement (\verb|onelep_t_mass|).
+\begin{enumerate}
+  \item How does the result change if you deactivate hadronization?
+  \item How does the result change if you deactivate the parton shower?
+\end{enumerate}
+
+
+The next step is to perform such a 'measurement' yourself. Go to
+the \verb|~/Tutorial/analyses/| directory. A \verb|TUTORIAL_TTBAR_2|
+analysis is prepared for you to be modified. There is also
+a \verb|MC_TUTORIAL_TTBAR| which is the implementation of the
+analysis we studied in the first part of this exercise.
+\begin{enumerate}
+  \item Modify \verb|TUTORIAL_TTBAR_2| to perform a top-quark mass
+        measurement. If you need some ideas or inspirations have look at
+        the \verb|MC_TUTORIAL_TTBAR|.
+  \item Compare your results with those from \verb|MC_TUTORIAL_TTBAR|.
+\end{enumerate}
+
+\section{Exercise 3 - Homework, Top-quark pair production beyond Born
+         approximation}
+\label{sec:task3}
+Please go to the directory \verb|~/Tutorial/exercise3|.
+
+The goal of this exercise is to perform a next-to-leading order (NLO)
+calculation including a matching to a parton shower.
+The preparation for such a calculations
+is usually much more involved than a simple leading order computation
+and thus cannot be done fully in the tutorial itself. If you are
+interested in performing it yourself I recommend to do it as a homework.
+
+The \verb|Run.dat| file has been modified to incorporate the NLO 
+corrections to top-quark pair production including the matching to
+the parton-shower in the MC@NLO scheme. Running this setup for the first
+time will $\sim$ 3 hours. You can use the same \verb|TUTORIAL_TTBAR_1|
+analysis to study the events.
+
+\begin{enumerate}
+  \item Compare the results obtained at NLO with the results obtained
+        in the first exercise. What do you observe?
+  \item You can extend the \textsc{Sherpa} setup such that is simulates
+        top-quark decays. You can run the analysis from exercise
+        2 and compare the results.
+\end{enumerate}
+
+\begin{thebibliography}{99}
+%\cite{Bierlich:2019rhm}
+\bibitem{Bierlich:2019rhm} 
+  C.~Bierlich \textit{ et al.},
+  %``Robust Independent Validation of Experiment and Theory: Rivet version 3,''
+  SciPost Phys.\  \textbf{8}, 026 (2020)
+  doi:10.21468/SciPostPhys.8.2.026
+  [arXiv:1912.05451 [hep-ph]].
+  %%CITATION = doi:10.21468/SciPostPhys.8.2.026;%%
+  %3 citations counted in INSPIRE as of 05 Mar 2020
+
+%\cite{Gleisberg:2008ta}
+\bibitem{Gleisberg:2008ta} 
+  T.~Gleisberg, S.~Hoeche, F.~Krauss, M.~Schonherr, S.~Schumann, F.~Siegert and J.~Winter,
+  %``Event generation with SHERPA 1.1,''
+  JHEP \textbf{0902}, 007 (2009)
+  doi:10.1088/1126-6708/2009/02/007
+  [arXiv:0811.4622 [hep-ph]].
+  %%CITATION = doi:10.1088/1126-6708/2009/02/007;%%
+  %2782 citations counted in INSPIRE as of 05 Mar 2020
+
+%\cite{Buckley:2014ana}
+\bibitem{Buckley:2014ana} 
+  A.~Buckley, J.~Ferrando, S.~Lloyd, K.~Nordström, B.~Page, M.~Rüfenacht, M.~Schönherr and G.~Watt,
+  %``LHAPDF6: parton density access in the LHC precision era,''
+  Eur.\ Phys.\ J.\ C \textbf{ 75}, 132 (2015)
+  doi:10.1140/epjc/s10052-015-3318-8
+  [arXiv:1412.7420 [hep-ph]].
+  %%CITATION = doi:10.1140/epjc/s10052-015-3318-8;%%
+  %673 citations counted in INSPIRE as of 05 Mar 2020
+
+%\cite{Buccioni:2019sur}
+\bibitem{Buccioni:2019sur} 
+  F.~Buccioni, J.~N.~Lang, J.~M.~Lindert, P.~Maierhöfer, S.~Pozzorini, H.~Zhang and M.~F.~Zoller,
+  %``OpenLoops 2,''
+  Eur.\ Phys.\ J.\ C \textbf{79}, no. 10, 866 (2019)
+  doi:10.1140/epjc/s10052-019-7306-2
+  [arXiv:1907.13071 [hep-ph]].
+  %%CITATION = doi:10.1140/epjc/s10052-019-7306-2;%%
+  %16 citations counted in INSPIRE as of 05 Mar 2020
+\end{thebibliography}
+\end{document}
