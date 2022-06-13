@@ -8,6 +8,10 @@ echo 'Install HEPSoftware to : '$dir
 echo '#############################'
 echo ''
 
+mkdir -p build
+mkdir -p install
+mkdir -p tarballs
+
 # Dependencies:
 sudo apt install gcc g++ python-dev zlib1g-dev gfortran git autoconf automake texlive texlive-pstricks imagemagick-6.q16hdri libtool
 
